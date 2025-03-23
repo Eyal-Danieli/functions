@@ -99,7 +99,7 @@ jobs:
           path: ~/.cache/pip
           # the key will be a combination of the operating system, the word 'pip', and the hash of the requirements.txt file
           # this way, if the requirements.txt file changes (or the os), the cache will need to be updated
-          key: ${{ runner.os }}-pip-${{ hashFiles('functions/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('functions/functions/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -107,6 +107,9 @@ jobs:
       - name: Install requirements
         run: |
           pip install --upgrade pip
+        # list the files in the functions directory
+          echo "List of files in the functions directory:"
+          ls 
           pip install -r functions/requirements.txt
 
       # Run python unit tests for each package in the matrix
