@@ -10,7 +10,7 @@ def setup_test():
     with tempfile.TemporaryDirectory() as artifact_path:
         project = mlrun.get_or_create_project(name="default", context=artifact_path)
         func = project.set_function(
-            func=os.path.abspath("./function.yaml"),
+            func=os.path.abspath("function.yaml"),
             name="silero-vad",
             image="mlrun/mlrun",
         )

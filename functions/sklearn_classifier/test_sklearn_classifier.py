@@ -41,7 +41,7 @@ def test_import_sklearn_classifier():
     train_run = fn.run(params=params,
                        inputs={"dataset": acquire_run.status.artifacts[0]['spec']['target_path']},
                        local=True,
-                       artifact_path="./")
+                       artifact_path="/")
 
     for artifact in train_run.status.artifacts:
         if artifact['kind'] == 'model':

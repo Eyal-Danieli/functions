@@ -1,37 +1,45 @@
 name: Test functions
 
+# This workflow is triggered on creation of a pull request or when a new commit is pushed to an existing pull request
 on:
   pull_request:
     types: [opened,synchronize]
     branches-ignore:
       - testing
+      - master
+      - development
+    paths:
+      - 'functions/**'
 
 jobs:
+  # Creates a matrix of directories that were changed in the pull request.
+  # This matrix is used to run tests only on the changed directories.
   build_strategy_matrix:
     runs-on: ubuntu-latest
     steps:
+      # Get the current branch name: extracts the current branch name from GitHub ref and set it as an output
       - name: Get the current branch name
         shell: bash
         run: echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
         id: myref
-
+      # Checkout (clone) the code into runner env
       - uses: actions/checkout@v3
       - id: set-matrix
-        # This is very hacky, but it goes like that:
-        # 1) Associate base_ref with origin/base_ref since actions/checkout doesn't do it, if we don't do that we won't be able to check the actual diff
+        # Going to create directories matrix. Note that this step using git diff to find the changes between the current branch and the base branch:
+
+        # 1) First, we fetch the base branch of the pull request from the origin repository.
         # 2) Build JSON string
-        #  2.1) Add beginning of JSON
-        #  2.2) Get diff between origin/base_ref and the checked-out repo => git diff ${{ github.base_ref }} --name-only
+        #  2.1) Add beginning of JSON, including the key "package"
+        #  2.2) Compare the current branch with the base branch and get only the file names => git diff ${{ github.base_ref }} --name-only
         #  2.3) Clean the file name and leave us only with directories => sed 's,/*[^/]\+/*$,,'
         #  2.4) Sort and keep only unique directories => sort | uniq
         #  2.5) Remove directories starting with '.' => grep -v '^\.'
         #  2.6) Add quotation marks to all strings => sed 's/.*/"&"/'
         #  2.7) Add comma suffix to all strings excluding the last one => sed '$!s/.*/&,/'
         #  2.8) Close JSON
+        #  2.9) Remove empty strings from the JSON => jq 'del(.[][] | select(. == ""))'
         # 3) Save matrix JSON to output
-        # This is previous fetch command that stopped working (wile invetsigating added WA bello in run sectiong): git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
-        # This is old git diff version:             git diff ${{ github.base_ref }} --name-only | sed 's,/*[^/]\+/*$,,' | sort | uniq | grep -v '^\.' | sed 's/.*/"&"/' | sed '$!s/.*/&,/'
-        # Based on instructions regarding https://docs.github.com/en/actions/learn-github-actions/contexts#github-context , github.base_ref triggers a workflow run is either pull_request or pull_request_target
+        # This matrix will be stored as an output (matrix) for later steps.
         run: |
           git fetch --no-tags --prune --depth=1 origin ${{ github.base_ref }}:${{ github.base_ref }}
           matrix=$((
@@ -44,25 +52,34 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
 
   check_matrix:
+  # The following job validates the matrix definition generated in the previous job
+  # It's a debugging job that prints the matrix in different formats
     runs-on: ubuntu-latest
     needs: build_strategy_matrix
     steps:
+      # Install json2yaml that will be used to convert the json matrix to yaml format
       - name: Install json2yaml
         run: |
           sudo npm install -g json2yaml
+      # Convert the matrix to yaml format: Get the matrix from the previous job, print it, convert it to json and print it, and then convert it to yaml and print it
       - name: Check matrix definition
         run: |
           matrix='${{ needs.build_strategy_matrix.outputs.matrix }}'
           echo $matrix
           echo $matrix | jq .
           echo $matrix | json2yaml
+
+  # The following job runs the tests on different packages, based on the build_strategy_matrix job output
   run_monorepo_tests:
     needs: build_strategy_matrix
     runs-on: ubuntu-latest
     strategy:
-      # matrix: [{"package": some package that changed}, {...}, ...]
+      # the strategy for running the tests. It converts the output JSON matrix into an actual
+      # matrix that will be used to define multiple test jobs.
+      # matrix example: [{"package": some package that changed}, {...}, ...]
       matrix: ${{fromJson(needs.build_strategy_matrix.outputs.matrix)}}
     steps:
+     # Checkout the code and place it in the functions directory
      - name: Checkout current repo
        uses: actions/checkout@v3
        with:
@@ -72,22 +89,28 @@ jobs:
        uses: actions/setup-python@v3
        with:
          python-version: 3.9
-     # Install dependencies
+     # Install dependencies - catch the python dependencies from the root requirements.txt to speed up future runs
      - uses: actions/cache@v3
        id: cache
        with:
          path: ~/.cache/pip
+         # the key will be a combination of the operating system, the word 'pip', and the hash of the requirements.txt file
+         # this way, if the requirements.txt file changes (or the os), the cache will need to be updated
          key: ${{ runner.os }}-pip-${{ hashFiles('functions/requirements.txt') }}
          restore-keys: |
            ${{ runner.os }}-pip-
+
+     # Install the requirements (that were not installed in the cache) from the functions directory
      - name: Install requirements
        run: |
          pip install --upgrade pip
          pip install -r functions/requirements.txt
 
+     # Run python unit tests for each package in the matrix
      - name: Run py tests
        run: python functions/functions.py  run-tests -r functions -s py -fn ${{ matrix.package }}
 
+    # Clean the functions directory
      - name: Clean
        run: |
          rm -rf functions

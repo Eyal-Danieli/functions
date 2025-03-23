@@ -78,10 +78,10 @@ def create_legacy_catalog(root_dir: Union[str, Path]):
             print(fn.metadata.name, entry)
             catalog[fn.metadata.name] = entry
 
-    with open("../catalog.yaml", "w") as fp:
+    with open("../functions/catalog.yaml", "w") as fp:
         yaml.dump(catalog, fp)
 
-    with open("../catalog.json", "w") as fp:
+    with open("../functions/catalog.json", "w") as fp:
         json.dump(catalog, fp)
 
     mdheader = """# Functions hub 

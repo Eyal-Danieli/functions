@@ -33,7 +33,7 @@ def _make_data_dir_for_test():
 
 def test_question_answering(monkeypatch):
     monkeypatch.setattr(transformers.Pipeline, "__call__", mock_pipeline_call)
-    input_path = "./data"
+    input_path = "data"
     artifact_path = tempfile.mkdtemp()
     project = mlrun.new_project("qa", context="./")
     fn = project.set_function("question_answering.py", "answer_questions", kind="job", image="mlrun/mlrun")
