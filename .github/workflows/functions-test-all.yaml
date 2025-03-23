@@ -13,8 +13,8 @@ on:
 #      - development
 #      - master
       - monorepo-design
-    paths:
-      - 'functions/**'
+#    paths:
+#      - 'functions/**'
 
 jobs:
   build_strategy_matrix:
