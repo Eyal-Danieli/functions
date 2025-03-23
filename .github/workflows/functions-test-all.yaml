@@ -106,10 +106,9 @@ jobs:
       # Install the requirements (that were not installed in the cache) from the functions directory
       - name: Install requirements
         run: |
+          echo "Listing all files in the current directory:"
+          ls -la
           pip install --upgrade pip
-        # list the files in the functions directory
-          echo "List of files in the functions directory:"
-          ls 
           pip install -r functions/requirements.txt
 
       # Run python unit tests for each package in the matrix
