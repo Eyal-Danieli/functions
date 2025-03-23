@@ -107,9 +107,9 @@ jobs:
       - name: Install requirements
         run: |
           echo "Listing all files in the current directory:"
-          ls -la
+          ls -la functions
           pip install --upgrade pip
-          pip install -r functions/requirements.txt
+          pip install -r functions/functions/requirements.txt
 
       # Run python unit tests for each package in the matrix
       - name: Run py tests
