@@ -12,7 +12,7 @@ on:
     branches:
 #      - development
 #      - master
-      - mono-test
+      - monorepo-design
     paths:
       - 'functions/**'
 
