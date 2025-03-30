@@ -24,6 +24,12 @@ import click
 )
 @click.option("-o", "--override", is_flag=True, help="Override if already exists")
 def new_item(path: str, override: bool):
+    """
+    Create a new item.yaml file in the specified directory
+
+    :param path: Path to directory in which a new item.yaml will be created
+    :param override: Override if already exists
+    """
     path = Path(path) / "item.yaml"
 
     if not path.parent.exists():

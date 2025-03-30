@@ -99,6 +99,7 @@ def build_marketplace(
     channel: str = "development",
     verbose: bool = False,
     force_update_items: bool = False,
+    entity_type: str = "functions"
 ):
     """Main entry point to marketplace building
 
@@ -117,7 +118,7 @@ def build_marketplace(
 
     # The root of the temporary project
     root_base = Path(temp_dir) / uuid.uuid4().hex
-    temp_root = root_base / "functions"
+    temp_root = root_base / entity_type
     temp_docs = root_base / "docs"
 
     click.echo(f"Temporary working directory: {root_base}")
@@ -128,7 +129,7 @@ def build_marketplace(
     marketplace_root = Path(marketplace_dir).resolve()
     marketplace_dir = marketplace_root / (source_name or source_dir.name) / channel
 
-    # Creating directories temp_root/functions, temp_root/docs and marketplace_root/functions/(development or master):
+    # Creating directories temp_root/modules, temp_root/docs and marketplace_root/modules/(development or master):
     temp_root.mkdir(parents=True)
     temp_docs.mkdir(parents=True)
     marketplace_dir.mkdir(parents=True, exist_ok=True)
@@ -255,8 +256,8 @@ def build_catalog_json(
     with_assets: bool = False,
 ):
     """
-    Building JSON catalog with all the details of the functions in marketplace
-    Each function in the catalog is seperated into different versions of the function,
+    Building JSON catalog with all the details of the modules in marketplace
+    Each module in the catalog is seperated into different versions of the modules,
     and in each version field, there is all the details that concerned the version.
 
     :param marketplace_dir:         the root directory of the marketplace
