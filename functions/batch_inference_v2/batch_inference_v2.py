@@ -110,7 +110,7 @@ def infer(
         result_set_name: str = "prediction",
         batch_id: str = None,
         artifacts_tag: str = "",
-        # Drift analysis parameters
+        # Drift analysis parameters #
         perform_drift_analysis: bool = None,
         endpoint_id: str = "",
         # The following model endpoint parameters are relevant only if:
