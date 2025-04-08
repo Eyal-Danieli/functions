@@ -101,7 +101,7 @@ def build_marketplace(
     force_update_items: bool = False,
     entity_type: str = "functions"
 ):
-    """Main entry point to marketplace building
+    """Main entry point to marketplace building.
 
     :param source_dir: Path to the source directory to build the marketplace from
     :param marketplace_dir: Path to marketplace directory
@@ -145,14 +145,20 @@ def build_marketplace(
     click.echo("Building tags.json...")
     json.dump(tags, open(marketplace_dir / "tags.json", "w"))
 
+    # Collecting requirements from the python files within the source directory
     requirements = get_mock_requirements(source_dir)
 
     if _verbose:
         click.echo(f"[Temporary project] Done requirements ({', '.join(requirements)})")
     sphinx_quickstart(temp_docs, requirements)
 
+    # Create temporary project structure, with __init__.py and object python files
     build_temp_project(source_dir, temp_root)
+
+    # Generate documentation files for python modules and packages using sphinx-apidoc
     build_temp_docs(temp_root, temp_docs)
+
+    # Copy example files to the temporary docs directory
     patch_temp_docs(source_dir, temp_docs)
 
     if _verbose:
@@ -572,7 +578,7 @@ def build_temp_project(source_dir, temp_root):
 
         with open(directory / "item.yaml", "r") as f:
             item = yaml.full_load(f)
-
+        # EYAL - TODO: consider removing this check or implement it for modules
         filename = item.get("spec")["filename"]
         temp_dir = temp_root / directory.name
         temp_dir.mkdir(parents=True, exist_ok=True)

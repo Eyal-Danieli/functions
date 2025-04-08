@@ -170,6 +170,7 @@ jobs:
           pwd
           git pull origin
           cd ..
+        # EYAL - HERE need to create above a new env var for object type name and replace in the script with functions
           python functions/functions/functions.py build-marketplace -s functions -m marketplace -c $CHANNEL -v -f
       # Publish the marketplace release - push the changes to the marketplace repo
       - name: Publish marketplace release
