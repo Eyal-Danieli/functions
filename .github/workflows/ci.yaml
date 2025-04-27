@@ -24,13 +24,14 @@ jobs:
     steps:
       # Get the current branch name: extracts the current branch name from GitHub ref and set it as an output
       - name: Get the current branch name
+        id: myref
         shell: bash
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-        id: myref
       # Checkout (clone) the code into runner env
       - name: Checkout (clone) the code
         uses: actions/checkout@v3
-      - id: set-matrix
+      - name: Set matrix and base_dir
+        id: set-matrix
         # Going to create directories matrix. Note that this step using git diff to find the changes between the current branch and the base branch:
 
         # 1) First, we fetch the base branch of the pull request from the origin repository.
@@ -68,8 +69,6 @@ jobs:
 #          echo "::set-output name=matrix::$matrix"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
           echo "base_dir=$base_dir" >> $GITHUB_OUTPUT
-
-
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       base_dir: ${{ steps.set-matrix.outputs.base_dir }}

@@ -7,12 +7,12 @@ name: Test all functions, build marketplace
 # 4. build-marketplace: Builds and prepares the marketplace docs and other files. It pushes the changes to a new branch in the marketplace repo and creates a pull request from that branch to the master branch.
 
 # This workflow is triggered on push to the functions directory in the main branches
-on:
-  push:
-    branches:
-#      - development
-#      - master
-      - monorepo-design
+#on:
+#  push:
+#    branches:
+##      - development
+##      - master
+#      - monorepo-design
 #    paths:
 #      - 'functions/**'
 
