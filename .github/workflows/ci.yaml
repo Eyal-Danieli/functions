@@ -40,16 +40,33 @@ jobs:
         #  2.9) Remove empty strings from the JSON => jq 'del(.[][] | select(. == ""))'
         # 3) Save matrix JSON to output
         # This matrix will be stored as an output (matrix) for later steps.
+        # We also detect the `base_dir` (e.g. functions) from the first file in the list of changed files.
         run: |
           git fetch --no-tags --prune --depth=1 origin ${{ github.base_ref }}:${{ github.base_ref }}
+               
+          changed_files=$(git diff ${{ github.base_ref }} --name-only)     
+          echo "Changed files:"
+          echo "$changed_files"
+          
+          # Detect base_dir from the FIRST file
+          first_file=$(echo "$changed_files" | head -n 1)
+          base_dir=$(echo "$first_file" | cut -d'/' -f1)
+               
+          echo "Detected base_dir: $base_dir"
+          
           matrix=$((
             echo '{ "package" : ['
-            git diff ${{ github.base_ref }} --name-only | sed 's,/*[^/]\+/*$,,' | sort | uniq | grep -v '^\.' | sed 's/.*/"&"/' | sed '$!s/.*/&,/'
+            echo "$changed_files" | sed 's,/*[^/]\+/*$,,' | sort | uniq | grep -v '^\.' | sed 's/.*/"&"/' | sed '$!s/.*/&,/'
             echo " ]}"
           ) | jq 'del(.[][] | select(. == ""))'  -c)
-          echo "::set-output name=matrix::$matrix"
+#          echo "::set-output name=matrix::$matrix"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "base_dir=$base_dir" >> $GITHUB_OUTPUT
+
+
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      base_dir: ${{ steps.set-matrix.outputs.base_dir }}
 
   check_matrix:
   # The following job validates the matrix definition generated in the previous job
@@ -72,6 +89,8 @@ jobs:
   # The following job runs the tests on different packages, based on the build_strategy_matrix job output
   run_monorepo_tests:
     needs: build_strategy_matrix
+    env:
+      BASE_DIR: ${{ needs.build_strategy_matrix.outputs.base_dir }}
     runs-on: ubuntu-latest
     strategy:
       # the strategy for running the tests. It converts the output JSON matrix into an actual
@@ -83,7 +102,7 @@ jobs:
      - name: Checkout current repo
        uses: actions/checkout@v3
        with:
-         path: functions
+         path: ${{ env.BASE_DIR }}
      # Install python 3.9
      - name: Install python 3.9
        uses: actions/setup-python@v3
@@ -96,7 +115,8 @@ jobs:
          path: ~/.cache/pip
          # the key will be a combination of the operating system, the word 'pip', and the hash of the requirements.txt file
          # this way, if the requirements.txt file changes (or the os), the cache will need to be updated
-         key: ${{ runner.os }}-pip-${{ hashFiles('functions/requirements.txt') }}
+         # key: ${{ runner.os }}-pip-${{ hashFiles('functions/requirements.txt') }}
+         key: ${{ runner.os }}-pip-${{ hashFiles(format('{0}/requirements.txt', env.BASE_DIR)) }}
          restore-keys: |
            ${{ runner.os }}-pip-
 
