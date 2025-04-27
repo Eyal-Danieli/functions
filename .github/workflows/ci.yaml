@@ -10,6 +10,11 @@ on:
       - development
     paths:
       - 'functions/**'
+  push:
+    branches:
+      #      - development
+      #      - master
+      - monorepo-design
 
 jobs:
   # Creates a matrix of directories that were changed in the pull request.
