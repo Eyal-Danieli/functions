@@ -159,7 +159,7 @@ jobs:
 
   build-marketplace:
     name: Build marketplace
-    if: (github.repository == 'mlrun/functions' || github.repository == 'mlrun/hub-assets')
+    if: (github.repository == 'mlrun/functions' || github.repository == 'mlrun/hub-assets' || github.repository == 'Eyal-Danieli/functions')
     runs-on: ubuntu-latest
     needs: run_monorepo_tests
     continue-on-error: false
