@@ -6,6 +6,7 @@ on:
     branches:
       - development
       - master
+      - add-force-build-v2
   workflow_dispatch:
     inputs:
       force_update_items:
