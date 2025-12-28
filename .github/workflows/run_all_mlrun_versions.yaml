@@ -1,0 +1,115 @@
+# This workflow tests all assets (functions, modules, steps) with multiple MLRun versions.
+# It runs manually (workflow_dispatch) and overrides the mlrunVersion specified in each asset's item.yaml.
+# The test suite uses the OVERRIDE_MLRUN_VERSION environment variable to install the specified MLRun version
+# instead of the version defined in item.yaml.
+name: Test all assets with multiple MLRun versions
+permissions:
+  contents: read
+on:
+  push:
+    branches:
+      - add-test-all-versions-workflow
+  workflow_dispatch: {}
+
+jobs:
+  build_asset_list:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: set-matrix
+        run: |
+          # Collect all asset directories with item.yaml
+          all_files="$(git ls-files || true)"
+          
+          # Collect candidate package paths
+          candidates=$(
+            printf '%s\n' "$all_files" \
+            | awk -F'/' '
+                /^functions\/src\// {print $1"/"$2"/"$3}
+                /^modules\/src\//  {print $1"/"$2"/"$3}
+                /^steps\/src\//  {print $1"/"$2"/"$3}
+              ' \
+            | sort -u
+          )
+          
+          # Keep only those that are actual directories
+          packages=""
+          for dir in $candidates; do
+            if [[ -d "$dir" ]]; then
+              packages+="$dir"$'\n'
+            fi
+          done
+      
+          if [[ -z "$packages" ]]; then
+            matrix_json='{"package":[]}'
+          else
+            matrix_json=$(printf '%s\n' "$packages" | grep -v '^$' | jq -R . | jq -s '{package: .}' | jq -c)
+          fi
+          echo "matrix=$matrix_json" >> "$GITHUB_OUTPUT"
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+  check_matrix:
+    runs-on: ubuntu-latest
+    needs: build_asset_list
+    steps:
+      - name: Install json2yaml
+        run: |
+          sudo npm install -g json2yaml
+      - name: Check matrix definition
+        run: |
+          matrix='${{ needs.build_asset_list.outputs.matrix }}'
+          echo $matrix
+          echo $matrix | jq .
+          echo $matrix | json2yaml
+
+  run_tests_with_all_mlrun_versions:
+    needs: build_asset_list
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{fromJson(needs.build_asset_list.outputs.matrix).package}}
+        mlrun_version: ['1.10.0', '1.9.2', '1.9.1', '1.9.0', '1.8.0']
+    steps:
+      # Source
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+
+      # Install python 3.10.17
+      - name: Install python 3.10.17
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10.17
+
+      # Install dependencies
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-mlrun-${{ matrix.mlrun_version }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install requirements
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run py tests with MLRun ${{ matrix.mlrun_version }}
+        run: |
+          # Override the mlrun version in the test by setting an environment variable
+          export OVERRIDE_MLRUN_VERSION=${{ matrix.mlrun_version }}
+          python -m cli.cli run-tests -r ${{ matrix.package }} -s py -fn $(basename "${{ matrix.package }}")
+        continue-on-error: true
+
+  test_summary:
+    needs: run_tests_with_all_mlrun_versions
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Test completion
+        run: |
+          echo "All tests completed across multiple MLRun versions"
+          echo "Check individual job results for details"

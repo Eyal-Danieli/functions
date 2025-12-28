@@ -19,6 +19,7 @@ from pathlib import Path
 from subprocess import CompletedProcess
 from typing import List, Union, Optional
 import sys
+import os
 import click
 import yaml
 import re
@@ -235,7 +236,18 @@ class TestPY(TestSuite):
         print("PY run path {}".format(path))
         install_python(path)
         item_requirements = list(get_item_yaml_values(path, 'requirements')['requirements'])
-        mlrun_version = list(get_item_yaml_values(path, "mlrunVersion")["mlrunVersion"])[0]
+
+        # Check if OVERRIDE_MLRUN_VERSION environment variable is set
+        # This allows running tests with a different MLRun version than specified in item.yaml
+        # Used by the run_all_mlrun_versions.yaml workflow to test compatibility across versions
+        override_mlrun_version = os.environ.get('OVERRIDE_MLRUN_VERSION')
+        if override_mlrun_version:
+            mlrun_version = override_mlrun_version
+            click.echo(f"Using overridden MLRun version: {mlrun_version}")
+        else:
+            mlrun_version = list(get_item_yaml_values(path, "mlrunVersion")["mlrunVersion"])[0]
+            click.echo(f"Using MLRun version from item.yaml: {mlrun_version}")
+
         install_requirements(path, ["pytest", f"mlrun=={mlrun_version}"] + item_requirements)
         click.echo(f"Running tests for {path}...")
         completed_process: CompletedProcess = subprocess.run(
