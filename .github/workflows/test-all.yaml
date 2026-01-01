@@ -6,6 +6,7 @@ on:
     branches:
       - development
       - master
+      - fix-lint-v2
   workflow_dispatch: {}
 
 jobs:
