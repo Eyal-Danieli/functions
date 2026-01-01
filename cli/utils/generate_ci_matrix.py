@@ -43,9 +43,9 @@ def get_python_versions_for_mlrun(mlrun_version_str: str) -> List[str]:
         v_1_10_0 = version.parse("1.10.0")
 
         if mlrun_ver < v_1_9_0:
-            return ["3.9"]
+            return ["3.10.17"]
         elif v_1_9_0 <= mlrun_ver < v_1_10_0:
-            return ["3.9", "3.11"]
+            return ["3.10.17", "3.11"]
         else:  # >= 1.10.0
             return ["3.11"]
     except Exception:
