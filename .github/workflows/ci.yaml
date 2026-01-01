@@ -18,22 +18,15 @@ jobs:
         id: myref
 
       - uses: actions/checkout@v3
+      - name: Set up Python for matrix generation
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10.17
+      - name: Install dependencies for matrix generation
+        run: |
+          pip install pyyaml packaging
       - id: set-matrix
-        # This is very hacky, but it goes like that:
-        # 1) Associate base_ref with origin/base_ref since actions/checkout doesn't do it, if we don't do that we won't be able to check the actual diff
-        # 2) Build JSON string
-        #  2.1) Add beginning of JSON
-        #  2.2) Get diff between origin/base_ref and the checked-out repo => git diff ${{ github.base_ref }} --name-only
-        #  2.3) Clean the file name and leave us only with directories => sed 's,/*[^/]\+/*$,,'
-        #  2.4) Sort and keep only unique directories => sort | uniq
-        #  2.5) Remove directories starting with '.' => grep -v '^\.'
-        #  2.6) Add quotation marks to all strings => sed 's/.*/"&"/'
-        #  2.7) Add comma suffix to all strings excluding the last one => sed '$!s/.*/&,/'
-        #  2.8) Close JSON
-        # 3) Save matrix JSON to output
-        # This is previous fetch command that stopped working (wile invetsigating added WA bello in run sectiong): git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
-        # This is old git diff version:             git diff ${{ github.base_ref }} --name-only | sed 's,/*[^/]\+/*$,,' | sort | uniq | grep -v '^\.' | sed 's/.*/"&"/' | sed '$!s/.*/&,/'
-        # Based on instructions regarding https://docs.github.com/en/actions/learn-github-actions/contexts#github-context , github.base_ref triggers a workflow run is either pull_request or pull_request_target
+        # Build matrix grouped by Python version using the generate_ci_matrix.py script
         run: | 
           echo "base ref: ${{ github.base_ref }}"
           git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
@@ -62,13 +55,10 @@ jobs:
           done
           
           if [[ -z "$packages" ]]; then
-            matrix_json='{"package":[]}'
+            matrix_json='{"include":[]}'
           else
-            matrix_json=$(printf '%s\n' "$packages" \
-              | grep -v '^$' \
-              | jq -R . \
-              | jq -s '{package: .}' \
-              | jq -c)   # <-- compact
+            # Use the generate_ci_matrix.py script to create matrix grouped by Python version
+            matrix_json=$(printf '%s' "$packages" | python3 cli/utils/generate_ci_matrix.py)
           fi
           echo "matrix=$matrix_json" >> "$GITHUB_OUTPUT"
     outputs:
@@ -90,19 +80,19 @@ jobs:
 
   run_monorepo_tests:
     needs: build_strategy_matrix
-    if: needs.build_strategy_matrix.outputs.matrix != '{"package":[]}'
+    if: needs.build_strategy_matrix.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
     strategy:
-      # matrix: [{"package": some package that changed}, {...}, ...]
+      # matrix: [{"python-version": "3.9", "packages": [...]}, {"python-version": "3.11", "packages": [...]}]
       matrix: ${{fromJson(needs.build_strategy_matrix.outputs.matrix)}}
     steps:
      - name: Checkout current repo
        uses: actions/checkout@v3
-     # Install python 3.10.17
-     - name: Install python 3.10.17
+     # Install python based on matrix
+     - name: Install python ${{ matrix.python-version }}
        uses: actions/setup-python@v4
        with:
-         python-version: 3.10.17
+         python-version: ${{ matrix.python-version }}
      # Install dependencies
      - uses: actions/cache@v3
        id: cache
@@ -118,7 +108,14 @@ jobs:
      - name: Print workspace structure
        run: |
          echo "Current directory: $(pwd)"
-         echo "Tree structure:"
-         find . -type f | sort
-     - name: Run py tests
-       run: python -m cli.cli run-tests -r ${{ matrix.package }} -s py -fn $(basename "${{ matrix.package }}")
+         echo "Python version: $(python --version)"
+         echo "Packages to test: ${{ join(matrix.packages, ', ') }}"
+     - name: Run py tests for all packages
+       run: |
+         echo "Testing packages with Python ${{ matrix.python-version }}"
+         for package in ${{ join(matrix.packages, ' ') }}; do
+           echo "=========================================="
+           echo "Testing: $package"
+           echo "=========================================="
+           python -m cli.cli run-tests -r "$package" -s py -fn $(basename "$package") --python-version ${{ matrix.python-version }}
+         done

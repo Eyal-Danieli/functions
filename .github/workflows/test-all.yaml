@@ -6,6 +6,7 @@ on:
     branches:
       - development
       - master
+      - align-python-ci
   workflow_dispatch: {}
 
 jobs:
@@ -18,20 +19,15 @@ jobs:
         id: myref
 
       - uses: actions/checkout@v4
+      - name: Set up Python for matrix generation
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10.17
+      - name: Install dependencies for matrix generation
+        run: |
+          pip install pyyaml packaging
       - id: set-matrix
-        # This is very hacky, but it goes like that:
-        # 1) Associate base_ref with origin/base_ref since actions/checkout doesn't do it, if we don't do that we won't be able to check the actual diff
-        # 2) Build JSON string
-        #  2.1) Add beginning of JSON
-        #  2.2) Get diff between origin/base_ref and the checked-out repo => git diff ${{ github.base_ref }} --name-only
-        #  2.3) Clean the file name and leave us only with directories => sed 's,/*[^/]\+/*$,,'
-        #  2.4) Sort and keep only unique directories => sort | uniq
-        #  2.5) Remove directories starting with '.' => grep -v '^\.'
-        #  2.6) Add quotation marks to all strings => sed 's/.*/"&"/'
-        #  2.7) Add comma suffix to all strings excluding the last one => sed '$!s/.*/&,/'
-        #  2.8) Close JSON
-        # 3) Save matrix JSON to output
-        # This is old fetch command it cant work cause base_ref is only avaliable on pull request actions: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+        # Build matrix grouped by Python version using the generate_ci_matrix.py script
         run: |
           all_files="$(git ls-files || true)"
           # Collect candidate package paths from diff
@@ -54,9 +50,10 @@ jobs:
           done
       
           if [[ -z "$packages" ]]; then
-            matrix_json='{"package":[]}'
+            matrix_json='{"include":[]}'
           else
-            matrix_json=$(printf '%s\n' "$packages" | grep -v '^$' | jq -R . | jq -s '{package: .}' | jq -c)
+            # Use the generate_ci_matrix.py script to create matrix grouped by Python version
+            matrix_json=$(printf '%s' "$packages" | python3 cli/utils/generate_ci_matrix.py)
           fi
           echo "matrix=$matrix_json" >> "$GITHUB_OUTPUT"
     outputs:
@@ -80,17 +77,17 @@ jobs:
     needs: build_strategy_matrix
     runs-on: ubuntu-latest
     strategy:
-      # matrix: [{"package": some package that changed}, {...}, ...]
+      # matrix: [{"python-version": "3.9", "packages": [...]}, {"python-version": "3.11", "packages": [...]}]
       matrix: ${{fromJson(needs.build_strategy_matrix.outputs.matrix)}}
     steps:
       # Source
       - name: Checkout current repo
         uses: actions/checkout@v4
-      # Install python 3.10.17
-      - name: Install python 3.10.17
+      # Install python based on matrix
+      - name: Install python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: 3.10.17
+          python-version: ${{ matrix.python-version }}
       # Install dependencies
       - uses: actions/cache@v3
         id: cache
@@ -104,8 +101,23 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run py tests
-        run: python -m cli.cli run-tests -r ${{ matrix.package }} -s py -fn $(basename "${{ matrix.package }}")
+      - name: Run py tests for all packages
+        run: |
+          echo "Testing packages with Python ${{ matrix.python-version }}"
+          failed_packages=""
+          for package in ${{ join(matrix.packages, ' ') }}; do
+            echo "=========================================="
+            echo "Testing: $package"
+            echo "=========================================="
+            if ! python -m cli.cli run-tests -r "$package" -s py -fn $(basename "$package") --python-version ${{ matrix.python-version }}; then
+              failed_packages="$failed_packages $package"
+              echo "FAILED: $package"
+            fi
+          done
+          if [[ -n "$failed_packages" ]]; then
+            echo "Failed packages: $failed_packages"
+            exit 1
+          fi
         continue-on-error: true
 #      - name: Run ipynb tests
 #        run: python functions/cli/cli.py  run-tests -r functions -s ipynb
