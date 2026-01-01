@@ -117,5 +117,5 @@ jobs:
            echo "=========================================="
            echo "Testing: $package"
            echo "=========================================="
-           python -m cli.cli run-tests -r "$package" -s py -fn $(basename "$package") --python-version ${{ matrix.python-version }}
+           python -m cli.cli run-tests -r "$package" -s py -fn $(basename "$package")
          done

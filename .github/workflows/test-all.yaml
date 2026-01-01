@@ -109,7 +109,7 @@ jobs:
             echo "=========================================="
             echo "Testing: $package"
             echo "=========================================="
-            if ! python -m cli.cli run-tests -r "$package" -s py -fn $(basename "$package") --python-version ${{ matrix.python-version }}; then
+            if ! python -m cli.cli run-tests -r "$package" -s py -fn $(basename "$package"); then
               failed_packages="$failed_packages $package"
               echo "FAILED: $package"
             fi
