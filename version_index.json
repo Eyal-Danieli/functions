@@ -1,0 +1,24 @@
+{
+  "functions": {
+    "batch_inference_v2": {
+      "mlrun~=1.5.0": "1.0.0",
+      "mlrun==1.9.1": "2.1.0"
+      "mlrun>=1.7.0,<=1.9.2,!=1.9.0": "2.0.0",
+    },
+    "my_func": {
+      "mlrun>=1.5.0": "1.0.0"
+    },
+    "describe": {
+      "mlrun>=1.6.0,<=1.8.0": "1.0.0"
+    }
+  },
+  "modules": {
+    "count_events": {
+      "mlrun>=1.10.0": "1.0.0"
+    },
+    "histogram_data_drift": {
+      "mlrun>=1.11.0": "1.0.0"
+    }
+  },
+  "steps": {}
+}
