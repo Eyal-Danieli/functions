@@ -162,7 +162,7 @@ jobs:
     name: Build marketplace
     if: |
       always() &&
-      (github.repository == 'mlrun/functions' || github.repository == 'mlrun/hub-assets') &&
+      (github.repository == 'mlrun/functions' || github.repository == 'mlrun/hub-assets' || github.repository == 'Eyal-Danieli/functions') &&
       (needs.run_monorepo_tests.result == 'success' || needs.run_monorepo_tests.result == 'skipped')
     runs-on: ubuntu-latest
     needs: run_monorepo_tests
